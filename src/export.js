@@ -139,53 +139,84 @@ function getIdFromUrl(url) {
   return url.match(/[-\w]{25,}/);
 }
 
-function genshinGachaExportClearSheet() {
-  var genshinGachaExportSheet = SpreadsheetApp.getActive().getSheetByName(GENSHIN_GACHA_EXPORT_SHEET_NAME);
-  if (genshinGachaExportSheet) {
-    var clearRows = genshinGachaExportSheet.getMaxRows()-2;
+function exportClearSheet(exportFormat) {
+  var exportSheet = SpreadsheetApp.getActive().getSheetByName(exportFormat);
+  if (exportSheet) {
+    var clearRows = exportSheet.getMaxRows()-2;
     if (clearRows > 0) {
-      genshinGachaExportSheet.getRange(3, 1, clearRows, 6).clearContent();
+      exportSheet.getRange(3, 1, clearRows, 6).clearContent();
     }
   } else {
     var title = "Error";
-    var message = "Missing sheet named "+GENSHIN_GACHA_EXPORT_SHEET_NAME;
+    var message = "Missing sheet named "+exportFormat;
     SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
   }
 }
 
-function genshinGachaExportSortSheet() {
-  var genshinGachaExportSheet = SpreadsheetApp.getActive().getSheetByName(GENSHIN_GACHA_EXPORT_SHEET_NAME);
-  if (genshinGachaExportSheet) {
-    var lastRowWithoutTitle = genshinGachaExportSheet.getMaxRows()-2;
-    var range = genshinGachaExportSheet.getRange(3, 1,lastRowWithoutTitle, 6);
+function exportSortSheet(exportFormat) {
+  var exportSheet = SpreadsheetApp.getActive().getSheetByName(exportFormat);
+  if (exportSheet) {
+    var lastRowWithoutTitle = exportSheet.getMaxRows()-2;
+    var range = exportSheet.getRange(3, 1,lastRowWithoutTitle, 6);
     range.sort([{column: 5, ascending: true}]);
   } else {
     var title = "Error";
-    var message = "Missing sheet named "+GENSHIN_GACHA_EXPORT_SHEET_NAME;
+    var message = "Missing sheet named "+exportFormat;
     SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
   }
+}
+
+function exportAdjustFormat(exportFormat) {
+  var exportSheet = SpreadsheetApp.getActive().getSheetByName(exportFormat);
+  if (exportSheet) {
+    var lastRowWithoutTitle = exportSheet.getMaxRows()-2;
+    exportSheet.getRange(1, 1, exportSheet.getMaxRows(), exportSheet.getMaxColumns()).clearFormat();
+    exportSheet.getRange(3, 7, lastRowWithoutTitle, 4).setBackground("lightgrey");
+    exportSheet.getRange(1, 1, 2, 10).setNumberFormat("@");
+    exportSheet.getRange(3, 1, lastRowWithoutTitle, 3).setNumberFormat("@");
+    exportSheet.getRange(3, 4, lastRowWithoutTitle, 3).setNumberFormat("0");
+    exportSheet.getRange(3, 7, lastRowWithoutTitle, 1).setNumberFormat("@");
+    exportSheet.getRange(3, 8, lastRowWithoutTitle, 1).setNumberFormat("0");
+    exportSheet.getRange(3, 9, lastRowWithoutTitle, 2).setNumberFormat("@");
+  } else {
+    var title = "Error";
+    var message = "Missing sheet named "+exportFormat;
+    SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
+  }
+}
+
+// Genshin Gacha
+function genshinGachaExportAdjustAndSortSheet() {
+  exportAdjustFormat(GENSHIN_GACHA_EXPORT_SHEET_NAME);
+  exportSortSheet(GENSHIN_GACHA_EXPORT_SHEET_NAME);
 }
 
 function genshinGachaExportAdjustFormat() {
-  var genshinGachaExportSheet = SpreadsheetApp.getActive().getSheetByName(GENSHIN_GACHA_EXPORT_SHEET_NAME);
-  if (genshinGachaExportSheet) {
-    var lastRowWithoutTitle = genshinGachaExportSheet.getMaxRows()-2;
-    genshinGachaExportSheet.getRange(1, 1, genshinGachaExportSheet.getMaxRows(), genshinGachaExportSheet.getMaxColumns()).clearFormat();
-    genshinGachaExportSheet.getRange(3, 7,lastRowWithoutTitle, 4).setBackground("lightgrey");
-    genshinGachaExportSheet.getRange(1, 1, 2, 10).setNumberFormat("@");
-    genshinGachaExportSheet.getRange(3, 1, lastRowWithoutTitle, 3).setNumberFormat("@");
-    genshinGachaExportSheet.getRange(3, 4, lastRowWithoutTitle, 3).setNumberFormat("0");
-    genshinGachaExportSheet.getRange(3, 7, lastRowWithoutTitle, 1).setNumberFormat("@");
-    genshinGachaExportSheet.getRange(3, 8, lastRowWithoutTitle, 1).setNumberFormat("0");
-    genshinGachaExportSheet.getRange(3, 9, lastRowWithoutTitle, 2).setNumberFormat("@");
-  } else {
-    var title = "Error";
-    var message = "Missing sheet named "+GENSHIN_GACHA_EXPORT_SHEET_NAME;
-    SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
-  }
+  exportAdjustFormat(GENSHIN_GACHA_EXPORT_SHEET_NAME);
 }
 
-function genshinGachaExportAdjustAndSortSheet() {
-  genshinGachaExportAdjustFormat();
-  genshinGachaExportSortSheet();
+function genshinGachaExportSortSheet() {
+  exportSortSheet(GENSHIN_GACHA_EXPORT_SHEET_NAME);
+}
+
+function genshinGachaExportClearSheet() {
+  exportClearSheet(GENSHIN_GACHA_EXPORT_SHEET_NAME);
+}
+
+// Genshin Wishes
+function genshinWishesExportAdjustAndSortSheet() {
+  exportAdjustFormat(GENSHIN_WISHES_EXPORT_SHEET_NAME);
+  exportSortSheet(GENSHIN_WISHES_EXPORT_SHEET_NAME);
+}
+
+function genshinWishesExportAdjustFormat() {
+  exportAdjustFormat(GENSHIN_WISHES_EXPORT_SHEET_NAME);
+}
+
+function genshinWishesExportSortSheet() {
+  exportSortSheet(GENSHIN_WISHES_EXPORT_SHEET_NAME);
+}
+
+function genshinWishesExportClearSheet() {
+  exportClearSheet(GENSHIN_WISHES_EXPORT_SHEET_NAME);
 }
