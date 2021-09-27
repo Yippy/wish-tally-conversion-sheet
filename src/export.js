@@ -1,6 +1,7 @@
 /*
  * Wish Tally - Conversion
- * Version 1.5 made by yippym
+ * Version 1.5 made by yippy
+ * https://github.com/Yippy/wish-tally-conversion-sheet
  */
 
 
