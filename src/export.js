@@ -13,14 +13,14 @@ function removeCache() {
   }
 }
 
-function convertToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet) {
+function convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet) {
   var genshinGachaExportSheet = SpreadsheetApp.getActive().getSheetByName(GENSHIN_GACHA_EXPORT_SHEET_NAME);
   
   if (cacheConvertedSource && wishTallySource && genshinGachaExportSheet) {
     for (const [key, value] of Object.entries(GENSHIN_GACHA_EXPORT_SHEET_NAMES_FROM_FILE)) {
       var isSkipped = true;
       var bannerSelection = autoImportSheet.getRange(RANGE_AUTO_IMPORT_SELECTION_BY_BANNER_NAMES[value]).getValue();
-      
+
       if (bannerSelection) {
         isSkipped = false;
       }
@@ -78,17 +78,26 @@ function autoImportToWishTally() {
     var fileTypeSelection = autoImportSheet.getRange(RANGE_FILE_TYPE_SELECTION).getValue();
     if (fileTypeSelection && fileTypeSelection == genshinGachaExportGoogleSheetFileType) {
       var sourceURL = autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue();
-      var cacheConvertedSource = SpreadsheetApp.openByUrl(sourceURL);
+      var cacheConvertedSource;
+      try {
+        cacheConvertedSource = SpreadsheetApp.openByUrl(sourceURL);
+      } catch(e) {
+        title = "Error";
+        message = "Invalid URL, check cell "+RANGE_FILE_URL_USER_INPUT+". Make sure the link is an Google Sheet";
+        SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
+        return;
+      }
       var wishTallyURL = autoImportSheet.getRange(RANGE_WISH_TALLY_URL_USER_INPUT).getValue();
       if (wishTallyURL != "") {
         var wishTallySource = SpreadsheetApp.openByUrl(wishTallyURL);
-        convertToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet);
+        convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet);
       } else {
         title = "Error";
         message = "Must provide Wish Tally sheet URL, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
       }
     } else if (fileTypeSelection && fileTypeSelection == genshinGachaExportFileType) {
-      var fileID = getIdFromUrl(autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue());
+      var sourceURL = autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue();
+      var fileID = getIdFromUrl(sourceURL);
       if (fileID) {
         var fileSource = DriveApp.getFileById(fileID);
         if (fileSource.getMimeType() == MimeType.MICROSOFT_EXCEL) {
@@ -105,7 +114,7 @@ function autoImportToWishTally() {
           var cacheConvertedSource = SpreadsheetApp.openById(fileConvertedSource.getId());
           if (wishTallyURL != "") {
             var wishTallySource = SpreadsheetApp.openByUrl(wishTallyURL);
-            convertToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
+            convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
           } else {
             title = "Error";
             message = "Must provide Wish Tally sheet URL, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
