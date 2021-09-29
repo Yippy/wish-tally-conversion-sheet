@@ -175,7 +175,12 @@ function exportAdjustFormat(exportFormat) {
   if (exportSheet) {
     var lastRowWithoutTitle = exportSheet.getMaxRows()-2;
     exportSheet.getRange(1, 1, exportSheet.getMaxRows(), exportSheet.getMaxColumns()).clearFormat();
-    exportSheet.getRange(3, 7, lastRowWithoutTitle, 4).setBackground("lightgrey");
+    if (exportFormat == GENSHIN_WISHES_EXPORT_SHEET_NAME) {
+      exportSheet.getRange(3, 3, lastRowWithoutTitle, 1).setBackground("lightyellow");
+      exportSheet.getRange(3, 8, lastRowWithoutTitle, 4).setBackground("lightgrey");
+    } else {
+      exportSheet.getRange(3, 7, lastRowWithoutTitle, 4).setBackground("lightgrey");
+    }
     exportSheet.getRange(1, 1, 2, 10).setNumberFormat("@");
     exportSheet.getRange(3, 1, lastRowWithoutTitle, 3).setNumberFormat("@");
     exportSheet.getRange(3, 4, lastRowWithoutTitle, 3).setNumberFormat("0");
