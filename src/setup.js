@@ -15,6 +15,12 @@ function onOpen( ){
              .addItem('Sort Wish Count', 'genshinGachaExportSortSheet')
              .addItem('Adjust and Sort', 'genshinGachaExportAdjustAndSortSheet'))
   .addSeparator()
+  .addSubMenu(ui.createMenu('genshin-wishes')
+             .addItem('Clear', 'genshinWishesExportClearSheet')
+             .addItem('Adjust Format', 'genshinWishesExportAdjustFormat')
+             .addItem('Sort Wish Count', 'genshinWishesExportSortSheet')
+             .addItem('Adjust and Sort', 'genshinWishesExportAdjustAndSortSheet'))
+  .addSeparator()
   .addItem('Auto Import', 'autoImportToWishTally')
   .addSeparator()
   .addToUi();

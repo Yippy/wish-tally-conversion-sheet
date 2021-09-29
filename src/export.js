@@ -72,8 +72,8 @@ function autoImportToWishTally() {
   var message = "";
   var title = "";
   var autoImportSheet = SpreadsheetApp.getActive().getSheetByName(AUTO_IMPORT_SHEET_NAME);
-  var genshinGachaExportFileType = autoImportSheet.getRange(RANGE_EXPORT_FILE_TYPE).getValue();
-  var genshinGachaExportGoogleSheetFileType = autoImportSheet.getRange(RANGE_EXPORT_GOOGLE_SHEET_TYPE).getValue();
+  var genshinGachaExportFileType = autoImportSheet.getRange(RANGE_EXPORT_GENSHIN_GACHA_FILE_TYPE).getValue();
+  var genshinGachaExportGoogleSheetFileType = autoImportSheet.getRange(RANGE_EXPORT_GENSHIN_GACHA_GOOGLE_SHEET_TYPE).getValue();
   if (autoImportSheet) {
     var fileTypeSelection = autoImportSheet.getRange(RANGE_FILE_TYPE_SELECTION).getValue();
     if (fileTypeSelection && fileTypeSelection == genshinGachaExportGoogleSheetFileType) {
@@ -158,7 +158,11 @@ function exportSortSheet(exportFormat) {
   if (exportSheet) {
     var lastRowWithoutTitle = exportSheet.getMaxRows()-2;
     var range = exportSheet.getRange(3, 1,lastRowWithoutTitle, 6);
-    range.sort([{column: 5, ascending: true}]);
+    if (exportFormat == GENSHIN_WISHES_EXPORT_SHEET_NAME) {
+      range.sort([{column: 3, ascending: true},{column: 4, ascending: true}]);
+    } else {
+      range.sort([{column: 5, ascending: true}]);
+    }
   } else {
     var title = "Error";
     var message = "Missing sheet named "+exportFormat;
