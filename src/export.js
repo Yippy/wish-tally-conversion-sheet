@@ -68,64 +68,180 @@ function convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSou
   }
 }
 
+function convertGenshinWishesExportToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet) {
+  var genshinWishesExportSheet = SpreadsheetApp.getActive().getSheetByName(GENSHIN_WISHES_EXPORT_SHEET_NAME);
+  
+  if (cacheConvertedSource && wishTallySource && genshinWishesExportSheet) {
+    var wishes = [];
+    var isSkipped = [];
+    for (const [key, value] of Object.entries(GENSHIN_WISHES_EXPORT_SHEET_NAMES_FROM_FILE)) {
+      wishes[key] = [];
+      var isSkipped = true;
+      var bannerSelection = autoImportSheet.getRange(RANGE_AUTO_IMPORT_SELECTION_BY_BANNER_NAMES[value]).getValue();
+      if (bannerSelection) {
+        isSkipped = false;
+      }
+      isSkipped[key] = isSkipped;
+      if (isSkipped) {
+        autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue("Skipped");
+      }
+    }
+
+    genshinWishesExportClearSheet();
+    var wishCacheConvertedSheets = cacheConvertedSource.getSheets();
+    var wishCacheConvertedSheet;
+    // There should only be one sheet
+    if (wishCacheConvertedSheets.length > 0) {
+      for (var i = 0; i < wishCacheConvertedSheets.length; i++) {
+        var sheetCheck = wishCacheConvertedSheets[i];
+        if (GENSHIN_WISHES_HEADER == sheetCheck.getRange(GENSHIN_WISHES_HEADER_RANGE).getValue()) {
+          wishCacheConvertedSheet = sheetCheck;
+        }
+      }
+    }
+    if (wishCacheConvertedSheet) {
+      var lastRowWithoutTitle = wishCacheConvertedSheet.getRange(2, 1, wishCacheConvertedSheet.getLastRow(), 1).getValues().filter(String).length;
+
+      var fileSourceRange = wishCacheConvertedSheet.getRange(2, 1, lastRowWithoutTitle, 1).getValues();
+      genshinWishesExportSheet.getRange(3, 1, fileSourceRange.length, 1).setValues(fileSourceRange);
+      SpreadsheetApp.flush();
+      //Give time for sheet to sort array formula
+      Utilities.sleep(10*1000);
+      SpreadsheetApp.flush();
+
+      var extractPasteValues = genshinWishesExportSheet.getRange(3, 8, fileSourceRange.length, 2).getValues();
+      var extractBannerValues = genshinWishesExportSheet.getRange(3, 3, fileSourceRange.length, 1).getValues();
+      // Sort wish history into banners
+      for (var i = 0; i < extractBannerValues.length; i++) {
+        var bannerName = extractBannerValues[i];
+        var wishHistory = wishes[bannerName];
+        wishHistory.push(extractPasteValues[i]);
+        wishes[bannerName] = wishHistory;
+      }
+      for (const [key, value] of Object.entries(GENSHIN_WISHES_EXPORT_SHEET_NAMES_FROM_FILE)) {
+        if (!isSkipped[key]) {
+          var wishHistory = wishes[key];
+          var lastRowWithoutTitle = wishHistory.length;
+          var wishTallySheet = wishTallySource.getSheetByName(value);
+          var lastRowWithoutTitlewishTallySheet = wishTallySheet.getRange(2, 1, wishTallySheet.getLastRow(), 1).getValues().filter(String).length;
+          var difference = lastRowWithoutTitle-lastRowWithoutTitlewishTallySheet;
+
+          if (difference <= 0 || lastRowWithoutTitlewishTallySheet ==  lastRowWithoutTitle) {
+            if (difference < 0){
+              autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue("Error - Wish Tally got more Wishes");
+            } else {
+              autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue(difference+"/"+ lastRowWithoutTitle+" Nothing to import");
+            }
+          } else {
+            autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue("Found "+difference+" new wishes");
+            wishHistory = wishHistory.slice(lastRowWithoutTitlewishTallySheet);
+            
+            SpreadsheetApp.getActiveSpreadsheet().toast("Converting "+difference+" wishes", key);
+            SpreadsheetApp.flush();
+            //Give time to show status
+            Utilities.sleep(10*1000);
+            SpreadsheetApp.flush();
+            wishTallySheet.getRange(2+lastRowWithoutTitlewishTallySheet, 1, difference, 2).setValues(wishHistory);
+            if (lastRowWithoutTitlewishTallySheet > 0) {
+              autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue(difference+"/"+ lastRowWithoutTitle+" Wishes added to banner");
+            } else {
+              autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue(lastRowWithoutTitle+" Wishes imported");
+            }
+          }
+        }
+      }
+    } else {
+      title = "Error";
+      message = "Source does not have Genshin Wishes template";
+      SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
+    }
+    genshinWishesExportClearSheet();
+  } else {
+    title = "Error";
+    message = "Unable to load wish tally";
+    SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
+  }
+}
+
 function autoImportToWishTally() {
   var message = "";
   var title = "";
   var autoImportSheet = SpreadsheetApp.getActive().getSheetByName(AUTO_IMPORT_SHEET_NAME);
   var genshinGachaExportFileType = autoImportSheet.getRange(RANGE_EXPORT_GENSHIN_GACHA_FILE_TYPE).getValue();
   var genshinGachaExportGoogleSheetFileType = autoImportSheet.getRange(RANGE_EXPORT_GENSHIN_GACHA_GOOGLE_SHEET_TYPE).getValue();
+  var genshinWishesExportFileType = autoImportSheet.getRange(RANGE_EXPORT_GENSHIN_WISHES_FILE_TYPE).getValue();
   if (autoImportSheet) {
     var fileTypeSelection = autoImportSheet.getRange(RANGE_FILE_TYPE_SELECTION).getValue();
-    if (fileTypeSelection && fileTypeSelection == genshinGachaExportGoogleSheetFileType) {
-      var sourceURL = autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue();
-      var cacheConvertedSource;
-      try {
-        cacheConvertedSource = SpreadsheetApp.openByUrl(sourceURL);
-      } catch(e) {
-        title = "Error";
-        message = "Invalid URL, check cell "+RANGE_FILE_URL_USER_INPUT+". Make sure the link is an Google Sheet";
-        SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
-        return;
-      }
-      var wishTallyURL = autoImportSheet.getRange(RANGE_WISH_TALLY_URL_USER_INPUT).getValue();
-      if (wishTallyURL != "") {
-        var wishTallySource = SpreadsheetApp.openByUrl(wishTallyURL);
-        convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet);
-      } else {
-        title = "Error";
-        message = "Must provide Wish Tally sheet URL, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
-      }
-    } else if (fileTypeSelection && fileTypeSelection == genshinGachaExportFileType) {
-      var sourceURL = autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue();
-      var fileID = getIdFromUrl(sourceURL);
-      if (fileID) {
-        var fileSource = DriveApp.getFileById(fileID);
-        if (fileSource.getMimeType() == MimeType.MICROSOFT_EXCEL) {
-          removeCache();
+    if (fileTypeSelection) {
+      if (fileTypeSelection == genshinGachaExportGoogleSheetFileType) {
+        var sourceURL = autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue();
+        var cacheConvertedSource;
+        try {
+          cacheConvertedSource = SpreadsheetApp.openByUrl(sourceURL);
+        } catch(e) {
+          title = "Error";
+          message = "Invalid URL, check cell "+RANGE_FILE_URL_USER_INPUT+". Make sure the link is an Google Sheet";
+          SpreadsheetApp.getActiveSpreadsheet().toast(message, title);
+          return;
+        }
+        var wishTallyURL = autoImportSheet.getRange(RANGE_WISH_TALLY_URL_USER_INPUT).getValue();
+        if (wishTallyURL != "") {
+          var wishTallySource = SpreadsheetApp.openByUrl(wishTallyURL);
+          convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet);
+        } else {
+          title = "Error";
+          message = "Must provide Wish Tally sheet URL, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
+        }
+      } else if (fileTypeSelection == genshinGachaExportFileType || fileTypeSelection == genshinWishesExportFileType) {
+        var sourceURL = autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue();
+        var fileID = getIdFromUrl(sourceURL);
+        if (fileID) {
+          var fileSource = DriveApp.getFileById(fileID);
+          var isValid = false;
+          if (fileSource.getMimeType() == MimeType.MICROSOFT_EXCEL && fileTypeSelection == genshinGachaExportFileType) {
+            isValid = true;
+          } else if (fileSource.getMimeType() == MimeType.CSV && fileTypeSelection == genshinWishesExportFileType) {
+            isValid = true;
+          }
+          if (isValid) {
+            removeCache();
 
-          var xBlob = fileSource.getBlob();
-          var newFile = { title : TEMP_SOURCE_TITLE,
-                         key : fileID
-                        }
-          var fileConvertedSource = Drive.Files.insert(newFile, xBlob, {
-            convert: true
-          });
-          var wishTallyURL = autoImportSheet.getRange(RANGE_WISH_TALLY_URL_USER_INPUT).getValue();
-          var cacheConvertedSource = SpreadsheetApp.openById(fileConvertedSource.getId());
-          if (wishTallyURL != "") {
-            var wishTallySource = SpreadsheetApp.openByUrl(wishTallyURL);
-            convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
+            var xBlob = fileSource.getBlob();
+            var newFile = { title : TEMP_SOURCE_TITLE,
+                          key : fileID,
+                          mimeType: MimeType.GOOGLE_SHEETS
+                          }
+            var fileConvertedSource = Drive.Files.insert(newFile, xBlob, {
+              convert: true
+            });
+            var wishTallyURL = autoImportSheet.getRange(RANGE_WISH_TALLY_URL_USER_INPUT).getValue();
+            var cacheConvertedSource = SpreadsheetApp.openById(fileConvertedSource.getId());
+            if (wishTallyURL != "") {
+              var wishTallySource = SpreadsheetApp.openByUrl(wishTallyURL);
+              if (fileTypeSelection == genshinGachaExportFileType) {
+                convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
+              } else {
+                convertGenshinWishesExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
+              }
+            } else {
+              title = "Error";
+              message = "Must provide Wish Tally sheet URL, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
+            }
           } else {
             title = "Error";
-            message = "Must provide Wish Tally sheet URL, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
+            if (fileTypeSelection == RANGE_EXPORT_GENSHIN_WISHES_FILE_TYPE) {
+              message = "Source is not an CSV file, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
+            } else {
+              message = "Source is not an Microsoft Excel file, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
+            }
           }
         } else {
           title = "Error";
-          message = "Source is not an Excel file, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
+          message = "Must provide source file URL to import wishes, check cell "+RANGE_FILE_URL_USER_INPUT;
         }
       } else {
         title = "Error";
-        message = "Must provide source file URL to import wishes, check cell "+RANGE_FILE_URL_USER_INPUT;
+        message = "Selected file type is not recognised, check cell "+RANGE_FILE_TYPE_SELECTION;
       }
     } else {
       title = "Error";
