@@ -1,6 +1,6 @@
 /*
  * Wish Tally - Conversion
- * Version 1.5 made by yippy
+ * Version 1.7 made by yippy
  * https://github.com/Yippy/wish-tally-conversion-sheet
  */
 
@@ -51,6 +51,61 @@ function convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSou
           Utilities.sleep(10*1000);
           SpreadsheetApp.flush();
           var wishTallyConvertRange = genshinGachaExportSheet.getRange(3, 7, difference, 2).getValues();
+          wishTallySheet.getRange(2+lastRowWithoutTitlewishTallySheet, 1, difference, 2).setValues(wishTallyConvertRange);
+          if (lastRowWithoutTitlewishTallySheet > 0) {
+            autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue(difference+"/"+ lastRowWithoutTitle+" Wishes added to banner");
+          } else {
+            autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue(lastRowWithoutTitle+" Wishes imported");
+          }
+        }
+      }
+    }
+    title = "Complete";
+    message = "";
+  } else {
+    title = "Error";
+    message = "Unable to load wish tally";
+  }
+}
+
+function convertPaimonMoeExportToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet) {
+  var genshinGachaExportSheet = SpreadsheetApp.getActive().getSheetByName(PAIMON_MOE_EXPORT_SHEET_NAME);
+  
+  if (cacheConvertedSource && wishTallySource && genshinGachaExportSheet) {
+    for (const [key, value] of Object.entries(PAIMON_MOE_EXPORT_SHEET_NAMES_FROM_FILE)) {
+      var isSkipped = true;
+      var bannerSelection = autoImportSheet.getRange(RANGE_AUTO_IMPORT_SELECTION_BY_BANNER_NAMES[value]).getValue();
+
+      if (bannerSelection) {
+        isSkipped = false;
+      }
+      if (isSkipped) {
+        autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue("Skipped");
+      } else {
+        paimonMoeExportClearSheet();
+        autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue("Begin importing..");
+        var wishCacheConvertedSheet = cacheConvertedSource.getSheetByName(key);
+        var lastRowWithoutTitle = wishCacheConvertedSheet.getRange(2, 1, wishCacheConvertedSheet.getLastRow(), 1).getValues().filter(String).length;
+        var wishTallySheet = wishTallySource.getSheetByName(value);
+        var lastRowWithoutTitlewishTallySheet = wishTallySheet.getRange(2, 1, wishTallySheet.getLastRow(), 1).getValues().filter(String).length;
+        var difference = lastRowWithoutTitle-lastRowWithoutTitlewishTallySheet;
+        if (difference <= 0 || lastRowWithoutTitlewishTallySheet == lastRowWithoutTitle) {
+          if (difference < 0){
+            autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue("Error - Wish Tally got more Wishes");
+          } else {
+            autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue(difference+"/"+ lastRowWithoutTitle+" Nothing to import");
+          }
+        } else {
+          autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue("Found "+difference+" new wishes");
+          var fileSourceRange = wishCacheConvertedSheet.getRange(2+(lastRowWithoutTitle-difference), 1, difference, 8).getValues();
+          genshinGachaExportSheet.getRange(3, 1, difference, 8).setValues(fileSourceRange);
+          
+          SpreadsheetApp.getActiveSpreadsheet().toast("Converting "+difference+" wishes", key);
+          SpreadsheetApp.flush();
+          //Give time for sheet to sort array formula
+          Utilities.sleep(10*1000);
+          SpreadsheetApp.flush();
+          var wishTallyConvertRange = genshinGachaExportSheet.getRange(3, 9, difference, 2).getValues();
           wishTallySheet.getRange(2+lastRowWithoutTitlewishTallySheet, 1, difference, 2).setValues(wishTallyConvertRange);
           if (lastRowWithoutTitlewishTallySheet > 0) {
             autoImportSheet.getRange(RANGE_AUTO_IMPORT_STATUS_BY_BANNER_NAMES[value]).setValue(difference+"/"+ lastRowWithoutTitle+" Wishes added to banner");
@@ -170,10 +225,12 @@ function autoImportToWishTally() {
   var genshinGachaExportFileType = autoImportSheet.getRange(RANGE_EXPORT_GENSHIN_GACHA_FILE_TYPE).getValue();
   var genshinGachaExportGoogleSheetFileType = autoImportSheet.getRange(RANGE_EXPORT_GENSHIN_GACHA_GOOGLE_SHEET_TYPE).getValue();
   var genshinWishesExportFileType = autoImportSheet.getRange(RANGE_EXPORT_GENSHIN_WISHES_FILE_TYPE).getValue();
+  var paimonMoeExportFileType = autoImportSheet.getRange(RANGE_EXPORT_PAIMON_MOE_FILE_TYPE).getValue();
+  var paimonMoeExportGoogleSheetFileType = autoImportSheet.getRange(RANGE_EXPORT_PAIMON_MOE_GOOGLE_SHEET_TYPE).getValue();
   if (autoImportSheet) {
     var fileTypeSelection = autoImportSheet.getRange(RANGE_FILE_TYPE_SELECTION).getValue();
     if (fileTypeSelection) {
-      if (fileTypeSelection == genshinGachaExportGoogleSheetFileType) {
+      if (fileTypeSelection == genshinGachaExportGoogleSheetFileType || fileTypeSelection == paimonMoeExportGoogleSheetFileType) {
         var sourceURL = autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue();
         var cacheConvertedSource;
         try {
@@ -187,18 +244,26 @@ function autoImportToWishTally() {
         var wishTallyURL = autoImportSheet.getRange(RANGE_WISH_TALLY_URL_USER_INPUT).getValue();
         if (wishTallyURL != "") {
           var wishTallySource = SpreadsheetApp.openByUrl(wishTallyURL);
-          convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet);
+          if (fileTypeSelection == paimonMoeExportGoogleSheetFileType) {
+            convertPaimonMoeExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
+          } else if (fileTypeSelection == genshinGachaExportGoogleSheetFileType) {
+            convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource, autoImportSheet);
+          } else {
+            convertGenshinWishesExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
+          }
         } else {
           title = "Error";
           message = "Must provide Wish Tally sheet URL, check cell "+RANGE_WISH_TALLY_URL_USER_INPUT;
         }
-      } else if (fileTypeSelection == genshinGachaExportFileType || fileTypeSelection == genshinWishesExportFileType) {
+      } else if (fileTypeSelection == genshinGachaExportFileType || fileTypeSelection == genshinWishesExportFileType || fileTypeSelection == paimonMoeExportFileType) {
         var sourceURL = autoImportSheet.getRange(RANGE_FILE_URL_USER_INPUT).getValue();
         var fileID = getIdFromUrl(sourceURL);
         if (fileID) {
           var fileSource = DriveApp.getFileById(fileID);
           var isValid = false;
           if (fileSource.getMimeType() == MimeType.MICROSOFT_EXCEL && fileTypeSelection == genshinGachaExportFileType) {
+            isValid = true;
+          } else if (fileSource.getMimeType() == MimeType.MICROSOFT_EXCEL && fileTypeSelection == paimonMoeExportFileType) {
             isValid = true;
           } else if (fileSource.getMimeType() == MimeType.CSV && fileTypeSelection == genshinWishesExportFileType) {
             isValid = true;
@@ -218,7 +283,9 @@ function autoImportToWishTally() {
             var cacheConvertedSource = SpreadsheetApp.openById(fileConvertedSource.getId());
             if (wishTallyURL != "") {
               var wishTallySource = SpreadsheetApp.openByUrl(wishTallyURL);
-              if (fileTypeSelection == genshinGachaExportFileType) {
+              if (fileTypeSelection == paimonMoeExportFileType) {
+                convertPaimonMoeExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
+              } else if (fileTypeSelection == genshinGachaExportFileType) {
                 convertGenshinGachaExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
               } else {
                 convertGenshinWishesExportToWishTally(wishTallySource, cacheConvertedSource,autoImportSheet);
@@ -283,7 +350,9 @@ function exportSortSheet(exportFormat) {
   if (exportSheet) {
     var lastRowWithoutTitle = exportSheet.getMaxRows()-2;
     var range = exportSheet.getRange(3, 1,lastRowWithoutTitle, 6);
-    if (exportFormat == GENSHIN_WISHES_EXPORT_SHEET_NAME) {
+    if (exportFormat == PAIMON_MOE_EXPORT_SHEET_NAME) {
+      range.sort([{column: 6, ascending: true}]);
+    } else if (exportFormat == GENSHIN_WISHES_EXPORT_SHEET_NAME) {
       range.sort([{column: 3, ascending: true},{column: 4, ascending: true}]);
     } else {
       range.sort([{column: 5, ascending: true}]);
@@ -300,7 +369,9 @@ function exportAdjustFormat(exportFormat) {
   if (exportSheet) {
     var lastRowWithoutTitle = exportSheet.getMaxRows()-2;
     exportSheet.getRange(1, 1, exportSheet.getMaxRows(), exportSheet.getMaxColumns()).clearFormat();
-    if (exportFormat == GENSHIN_WISHES_EXPORT_SHEET_NAME) {
+    if (exportFormat == PAIMON_MOE_EXPORT_SHEET_NAME) {
+      exportSheet.getRange(3, 9, lastRowWithoutTitle, 6).setBackground("lightgrey");
+    } else if (exportFormat == GENSHIN_WISHES_EXPORT_SHEET_NAME) {
       exportSheet.getRange(3, 3, lastRowWithoutTitle, 1).setBackground("lightyellow");
       exportSheet.getRange(3, 8, lastRowWithoutTitle, 4).setBackground("lightgrey");
     } else {
@@ -353,4 +424,22 @@ function genshinWishesExportSortSheet() {
 
 function genshinWishesExportClearSheet() {
   exportClearSheet(GENSHIN_WISHES_EXPORT_SHEET_NAME);
+}
+
+// paimon.moe
+function paimonMoeExportAdjustAndSortSheet() {
+  exportAdjustFormat(PAIMON_MOE_EXPORT_SHEET_NAME);
+  exportSortSheet(PAIMON_MOE_EXPORT_SHEET_NAME);
+}
+
+function paimonMoeExportAdjustFormat() {
+  exportAdjustFormat(PAIMON_MOE_EXPORT_SHEET_NAME);
+}
+
+function paimonMoeExportSortSheet() {
+  exportSortSheet(PAIMON_MOE_EXPORT_SHEET_NAME);
+}
+
+function paimonMoeExportClearSheet() {
+  exportClearSheet(PAIMON_MOE_EXPORT_SHEET_NAME);
 }

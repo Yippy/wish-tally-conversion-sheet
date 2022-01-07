@@ -1,6 +1,6 @@
 /*
  * Wish Tally - Conversion
- * Version 1.5 made by yippy
+ * Version 1.7 made by yippy
  * https://github.com/Yippy/wish-tally-conversion-sheet
  */
 
@@ -20,6 +20,12 @@ function onOpen( ){
              .addItem('Adjust Format', 'genshinWishesExportAdjustFormat')
              .addItem('Sort Wish Count', 'genshinWishesExportSortSheet')
              .addItem('Adjust and Sort', 'genshinWishesExportAdjustAndSortSheet'))
+  .addSeparator()
+  .addSubMenu(ui.createMenu('paimon.moe')
+             .addItem('Clear', 'paimonMoeExportClearSheet')
+             .addItem('Adjust Format', 'paimonMoeExportAdjustFormat')
+             .addItem('Sort Wish Count', 'paimonMoeExportSortSheet')
+             .addItem('Adjust and Sort', 'paimonMoeExportAdjustAndSortSheet'))
   .addSeparator()
   .addItem('Auto Import', 'autoImportToWishTally')
   .addSeparator()
