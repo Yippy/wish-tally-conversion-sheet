@@ -336,7 +336,7 @@ function exportClearSheet(exportFormat) {
   if (exportSheet) {
     var clearRows = exportSheet.getMaxRows()-2;
     if (clearRows > 0) {
-      exportSheet.getRange(3, 1, clearRows, 6).clearContent();
+      exportSheet.getRange(3, 1, clearRows, exportSheet.getMaxColumns()).clearContent();
     }
   } else {
     var title = "Error";
